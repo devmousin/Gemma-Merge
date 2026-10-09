@@ -1,128 +1,426 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gemma-Merge | AI GitHub Assistant</title>
-  <script src="/tailwind.js"></script>
-</head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col items-center p-4 sm:p-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemma-Merge | Open-source contribution copilot</title>
+<style>
+  :root {
+    --paper: #eef1f5;
+    --sheet: #ffffff;
+    --ink: #14213d;
+    --ink-soft: #4b5873;
+    --line: #d5dbe5;
+    --blue: #2a56f0;
+    --blue-dark: #1b3fc4;
+    --add: #17814f;
+    --del: #c0352b;
+    --code-bg: #f3f5f9;
+    --mark-yellow: #ffe45c;
+    --mark-mint: #aef0cf;
+    --mark-lilac: #d8cdfc;
+    --mark-peach: #ffcfae;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.6 var(--sans); min-height: 100vh;
+  }
+  .page { max-width: 860px; margin: 0 auto; padding: 32px 20px 64px; }
 
-  <!-- Top Banner -->
-  <header class="w-full max-w-4xl flex flex-col sm:flex-row items-center justify-between border-b border-slate-800 pb-5 mb-8">
+  /* Header */
+  header { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; }
+  h1 { font: 700 2.1rem/1.1 var(--serif); margin: 0; letter-spacing: -0.01em; }
+  .tagline { margin: 6px 0 0; color: var(--ink-soft); max-width: 46ch; }
+  .engine-status { font-size: .8rem; color: var(--ink-soft); display: flex; align-items: center; gap: 8px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #b7c0cf; flex: none; }
+  .dot.ok { background: var(--add); }
+  .dot.warn { background: #d9922b; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); margin-bottom: 20px; }
+  .tab {
+    appearance: none; background: none; border: 0; cursor: pointer; font: 600 1rem var(--sans);
+    color: var(--ink-soft); padding: 10px 16px; margin-bottom: -2px; border-bottom: 3px solid transparent;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--blue); }
+  :focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
+
+  /* Input panel */
+  .panel { background: var(--sheet); border: 1px solid var(--line); border-radius: 8px; padding: 20px; }
+  .panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; margin-bottom: 10px; }
+  label { font-weight: 600; }
+  .presets { font-size: .85rem; display: flex; gap: 14px; flex-wrap: wrap; }
+  .link-btn { appearance: none; background: none; border: 0; padding: 0; color: var(--blue); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .link-btn:hover { color: var(--blue-dark); }
+  textarea {
+    width: 100%; min-height: 190px; resize: vertical; border: 1px solid var(--line); border-radius: 6px;
+    padding: 12px; font: .85rem/1.55 var(--mono); color: var(--ink); background: var(--code-bg);
+  }
+  textarea:focus { outline: 3px solid rgba(42,86,240,.35); border-color: var(--blue); }
+  .row { display: flex; align-items: center; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
+  .counter { font-size: .8rem; color: var(--ink-soft); margin-left: auto; }
+  .btn-primary {
+    appearance: none; border: 0; cursor: pointer; background: var(--blue); color: #fff; font: 600 1rem var(--sans);
+    padding: 11px 22px; border-radius: 6px;
+  }
+  .btn-primary:hover { background: var(--blue-dark); }
+  .btn-primary:disabled { background: #8c9ac4; cursor: progress; }
+  .btn-ghost {
+    appearance: none; cursor: pointer; background: var(--sheet); color: var(--ink); font: 600 .85rem var(--sans);
+    border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px;
+  }
+  .btn-ghost:hover { border-color: var(--ink-soft); }
+
+  /* Status / errors */
+  .status { margin-top: 18px; display: none; align-items: center; gap: 12px; color: var(--ink-soft); font-size: .95rem; }
+  .status.show { display: flex; }
+  .spinner { width: 18px; height: 18px; border: 3px solid var(--line); border-top-color: var(--blue); border-radius: 50%; animation: spin .8s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .banner { margin-top: 18px; padding: 12px 14px; border-radius: 6px; font-size: .92rem; display: none; }
+  .banner.show { display: block; }
+  .banner.error { background: #fdecea; border: 1px solid #f1b7b1; color: #7d1f17; }
+  .banner.shield { background: #fff6dc; border: 1px solid #ecd48a; color: #5c4600; }
+  .banner.info { background: #e8eefc; border: 1px solid #b9c8f3; color: #1e357f; }
+
+  /* Result sheet */
+  .result { margin-top: 24px; background: var(--sheet); border: 1px solid var(--line); border-radius: 8px; padding: 8px 24px 24px; display: none; }
+  .result.show { display: block; }
+  .result-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 0; border-bottom: 1px solid var(--line); font-size: .82rem; color: var(--ink-soft); }
+  .result-bar .spacer { flex: 1; }
+  .chip { display: inline-block; padding: 2px 10px; border-radius: 99px; background: var(--code-bg); border: 1px solid var(--line); font-size: .8rem; }
+  .chip.add { color: var(--add); font-family: var(--mono); }
+  .chip.del { color: var(--del); font-family: var(--mono); }
+
+  section.block { padding-top: 22px; }
+  section.block + section.block { border-top: 1px solid var(--line); margin-top: 22px; }
+  h2.hl { font: 700 1.35rem/1.3 var(--serif); margin: 0 0 12px; }
+  h2.hl > span:first-child {
+    background: linear-gradient(transparent 12%, var(--mark) 12%, var(--mark) 92%, transparent 92%);
+    padding: 0 .35em; margin-left: -.35em;
+    -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  }
+  .body p { margin: 0 0 10px; max-width: 70ch; }
+  .body ol, .body ul { margin: 0; padding: 0; list-style: none; }
+  .body li { display: flex; gap: 12px; margin: 0 0 12px; max-width: 72ch; }
+  .body ol li .num {
+    flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: #fff;
+    font: 700 .8rem/26px var(--mono); text-align: center; margin-top: 1px;
+  }
+  .body ul li .bullet { flex: none; width: 7px; height: 7px; background: var(--ink); border-radius: 1px; margin-top: 11px; }
+  .body li .txt strong { font-weight: 700; }
+  .body code { font: .85em var(--mono); background: var(--code-bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; word-break: break-word; }
+  .body pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 12px; overflow-x: auto; margin: 0 0 12px; font: .82rem/1.5 var(--mono); }
+  .body pre code { background: none; border: 0; padding: 0; font-size: 1em; }
+  .check li .box { flex: none; width: 18px; height: 18px; border: 2px solid var(--ink); border-radius: 4px; margin-top: 4px; }
+  .tag-auto { font: 600 .7rem var(--sans); color: var(--ink-soft); border: 1px dashed var(--ink-soft); border-radius: 4px; padding: 1px 6px; margin-left: 10px; vertical-align: middle; }
+  .level { display: inline-block; font-weight: 700; padding: 2px 12px; border-radius: 99px; margin-right: 8px; }
+  .level.Beginner { background: #cdf3dd; color: #0d5a35; }
+  .level.Intermediate { background: #ffe9b8; color: #6b4a00; }
+  .level.Advanced { background: #ffd2cc; color: #8a2017; }
+  .commit-title { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .commit-title code { font-size: 1rem; padding: 6px 10px; }
+
+  /* Files + git steps */
+  .files { list-style: none; padding: 0; margin: 0; font: .85rem var(--mono); }
+  .files li { display: flex; gap: 12px; padding: 5px 0; border-bottom: 1px dashed var(--line); flex-wrap: wrap; }
+  .files .p { flex: 1; min-width: 180px; word-break: break-all; }
+  .files .a { color: var(--add); } .files .d { color: var(--del); } .files .s { color: var(--ink-soft); }
+  .step-cmd { position: relative; margin-top: 6px; }
+  .step-cmd pre { margin: 0; padding-right: 70px; }
+  .step-cmd .btn-ghost { position: absolute; top: 6px; right: 6px; padding: 3px 9px; font-size: .75rem; }
+  .step-title { font-weight: 700; }
+  .step-detail { color: var(--ink-soft); font-size: .93rem; }
+
+  .toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none;
+    background: var(--ink); color: #fff; padding: 9px 16px; border-radius: 6px; font-size: .9rem; transition: opacity .2s, transform .2s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .hidden { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } .toast { transition: none; } }
+  @media (max-width: 560px) { h1 { font-size: 1.7rem; } .result { padding: 4px 16px 20px; } .tab { padding: 10px 10px; font-size: .92rem; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
     <div>
-      <h1 class="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
-        <span>⚡ Gemma-Merge</span>
-      </h1>
-      <p class="text-sm text-slate-400 mt-1">Open-Source Copilot & Privacy Harness | Powered by Gemma 4</p>
+      <h1>Gemma-Merge</h1>
+      <p class="tagline">Understand a GitHub issue, then turn your code changes into a pull request that is ready to submit.</p>
     </div>
-    <div class="mt-4 sm:mt-0 flex items-center gap-2">
-      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-950 text-emerald-400 border border-emerald-800">
-        ● Dual-Engine (Cloud + Local Edge)
-      </span>
-    </div>
+    <div class="engine-status" id="engine-status" role="status"><span class="dot"></span><span>Checking engines…</span></div>
   </header>
 
-  <!-- Navigation Tabs -->
-  <main class="w-full max-w-4xl">
-    <div class="flex border-b border-slate-800 mb-6">
-      <button id="tab-issue-btn" onclick="switchTab('issue')" class="px-5 py-2.5 font-semibold text-emerald-400 border-b-2 border-emerald-400 transition">
-        1. Issue Demystifier
-      </button>
-      <button id="tab-diff-btn" onclick="switchTab('diff')" class="px-5 py-2.5 font-semibold text-slate-400 hover:text-white transition">
-        2. Diff-to-PR Synthesizer
-      </button>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-issue-btn" aria-selected="true" aria-controls="tab-issue" onclick="switchTab('issue')">Understand an issue</button>
+    <button class="tab" role="tab" id="tab-diff-btn" aria-selected="false" aria-controls="tab-diff" onclick="switchTab('diff')">Turn a diff into a PR</button>
+  </div>
+
+  <!-- ISSUE -->
+  <div id="tab-issue" role="tabpanel">
+    <div class="panel">
+      <div class="panel-head">
+        <label for="issue-input">GitHub issue text</label>
+        <div class="presets"><button class="link-btn" onclick="fillDemoIssue()">Try an example (Axios timeout bug)</button></div>
+      </div>
+      <textarea id="issue-input" placeholder="Paste the issue title and description here…" oninput="updateCount('issue')"></textarea>
+      <div class="row">
+        <button class="btn-primary" id="issue-btn" onclick="runDemystify()">Explain this issue</button>
+        <span class="counter" id="issue-count">0 characters</span>
+      </div>
+      <div class="status" id="issue-status" role="status"><div class="spinner"></div><span id="issue-status-text"></span></div>
+      <div class="banner error" id="issue-error" role="alert"></div>
+      <div class="banner shield" id="issue-shield"></div>
+      <div class="banner info" id="issue-partial"></div>
     </div>
+    <div class="result" id="issue-result"></div>
+  </div>
 
-    <!-- TAB 1: ISSUE DEMYSTIFIER -->
-    <section id="tab-issue" class="space-y-6">
-      <!-- Input Card -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
-        <div class="flex justify-between items-center mb-2">
-          <label class="block text-sm font-semibold text-slate-300">Paste GitHub Issue Description:</label>
-          <button onclick="fillDemoIssue()" class="text-xs text-emerald-400 hover:text-emerald-300 hover:underline">
-            + Preset: Real Bug (Axios #5237)
-          </button>
+  <!-- DIFF -->
+  <div id="tab-diff" role="tabpanel" class="hidden">
+    <div class="panel">
+      <div class="panel-head">
+        <label for="diff-input">Output of <code>git diff</code></label>
+        <div class="presets">
+          <button class="link-btn" onclick="fillCleanDiff()">Example: clean bug fix</button>
+          <button class="link-btn" onclick="fillSecretDiff()">Example: diff with a leaked token</button>
         </div>
-        <textarea id="issue-input" rows="7" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500 leading-relaxed" placeholder="e.g. Uncaught TypeError in hydration mismatch when rendering dynamic slot components..."></textarea>
-        
-        <button id="demystify-btn" onclick="runDemystify()" class="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 font-semibold text-white py-2.5 px-4 rounded-lg transition flex items-center justify-center gap-2 shadow-md shadow-emerald-950">
-          <span>Demystify Issue</span>
-        </button>
       </div>
-
-      <!-- Output Display (Rendered Directly Below Input) -->
-      <div id="issue-output-card" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-4">
-        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-          <span id="issue-engine-badge" class="text-xs px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-emerald-400 font-mono">Engine</span>
-          <button onclick="copyContent('issue-result')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded transition">
-            📋 Copy Guidance
-          </button>
-        </div>
-        <div id="issue-result" class="text-sm text-slate-200 leading-relaxed space-y-2"></div>
+      <textarea id="diff-input" placeholder="diff --git a/…" oninput="updateCount('diff')"></textarea>
+      <div class="row">
+        <button class="btn-primary" id="diff-btn" onclick="runSynthesize()">Create pull request</button>
+        <span class="counter" id="diff-count">0 characters</span>
       </div>
-    </section>
+      <div class="status" id="diff-status" role="status"><div class="spinner"></div><span id="diff-status-text"></span></div>
+      <div class="banner error" id="diff-error" role="alert"></div>
+      <div class="banner shield" id="diff-shield"></div>
+      <div class="banner info" id="diff-partial"></div>
+    </div>
+    <div class="result" id="diff-result"></div>
+  </div>
 
-    <!-- TAB 2: DIFF-TO-PR SYNTHESIZER -->
-    <section id="tab-diff" class="hidden space-y-6">
-      <!-- Input Card -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
-        <div class="flex justify-between items-center mb-2">
-          <label class="block text-sm font-semibold text-slate-300">Paste Raw Git Diff (`git diff`):</label>
-          <div class="space-x-2 text-xs">
-            <button onclick="fillCleanDiff()" class="text-emerald-400 hover:text-emerald-300 hover:underline">+ Clean Bugfix Diff</button>
-            <span class="text-slate-600">|</span>
-            <button onclick="fillSecretDiff()" class="text-rose-400 hover:text-rose-300 hover:underline">+ Diff with Leaked Token</button>
-          </div>
-        </div>
-        <textarea id="diff-input" rows="7" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500 leading-relaxed" placeholder="diff --git a/auth.py b/auth.py..."></textarea>
-        
-        <button id="synthesize-btn" onclick="runSynthesize()" class="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 font-semibold text-white py-2.5 px-4 rounded-lg transition flex items-center justify-center gap-2 shadow-md shadow-emerald-950">
-          <span>Generate Pull Request</span>
-        </button>
-      </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-      <!-- Output Display (Rendered Directly Below Input) -->
-      <div id="diff-output-card" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-4">
-        <div id="security-alert" class="hidden p-3.5 rounded-lg bg-rose-950/70 border border-rose-800 text-rose-200 text-xs font-semibold flex items-center gap-2">
-          <span class="text-base">🛡️</span>
-          <span>Zero-Trust Credential Shield: Leaked token intercepted and neutralized locally with [MASKED_SECRET_CREDENTIAL].</span>
-        </div>
-        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-          <span id="diff-engine-badge" class="text-xs px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-emerald-400 font-mono">Engine</span>
-          <button onclick="copyContent('diff-result')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded transition">
-            📋 Copy PR Markdown
-          </button>
-        </div>
-        <div id="diff-result" class="text-sm text-slate-200 leading-relaxed space-y-2"></div>
-      </div>
-    </section>
-  </main>
+<script>
+  const REQUEST_TIMEOUT_MS = 40000;   // backend budget is 28 s; this is only a safety net
+  const MARKS = {
+    'Summary': '--mark-yellow',
+    'Action Plan': '--mark-mint',
+    'Target Codebase Areas': '--mark-lilac',
+    'Difficulty': '--mark-peach',
+    'Commit Title': '--mark-yellow',
+    'Summary of Changes': '--mark-mint',
+    'Verification Checklist': '--mark-lilac'
+  };
+  let lastPR = '';
 
-  <script>
-    // Tab Switching
-    function switchTab(tab) {
-      const issueTab = document.getElementById('tab-issue');
-      const diffTab = document.getElementById('tab-diff');
-      const issueBtn = document.getElementById('tab-issue-btn');
-      const diffBtn = document.getElementById('tab-diff-btn');
+  /* ---------- helpers ---------- */
+  const $ = id => document.getElementById(id);
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-      if (tab === 'issue') {
-        issueTab.classList.remove('hidden');
-        diffTab.classList.add('hidden');
-        issueBtn.className = "px-5 py-2.5 font-semibold text-emerald-400 border-b-2 border-emerald-400 transition";
-        diffBtn.className = "px-5 py-2.5 font-semibold text-slate-400 hover:text-white transition";
-      } else {
-        diffTab.classList.remove('hidden');
-        issueTab.classList.add('hidden');
-        diffBtn.className = "px-5 py-2.5 font-semibold text-emerald-400 border-b-2 border-emerald-400 transition";
-        issueBtn.className = "px-5 py-2.5 font-semibold text-slate-400 hover:text-white transition";
-      }
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+  async function copyText(text, msg) {
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {
+      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove();
     }
+    toast(msg || 'Copied');
+  }
+  function updateCount(k) { $(k + '-count').textContent = $(k + '-input').value.length.toLocaleString() + ' characters'; }
 
-    // --- REAL-WORLD DATA PRESETS (AXIOS & INTEGRATION TESTS) ---
-    function fillDemoIssue() {
-      document.getElementById('issue-input').value = 
+  function switchTab(tab) {
+    for (const k of ['issue', 'diff']) {
+      const on = k === tab;
+      $('tab-' + k).classList.toggle('hidden', !on);
+      $('tab-' + k + '-btn').setAttribute('aria-selected', on);
+    }
+  }
+
+  /* ---------- markdown-lite renderer (safe: escapes first) ---------- */
+  function inline(s) {
+    s = esc(s);
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/^([A-Z][A-Za-z ]{2,26}):(\s|$)/, '<strong>$1:</strong>$2');   // "Reproduce:" labels
+    return s;
+  }
+  function renderBody(text, opts = {}) {
+    const lines = text.replace(/\r/g, '').split('\n');
+    let html = '', mode = null, para = [], i = 0;
+    const closeList = () => { if (mode) { html += mode === 'ol' ? '</ol>' : '</ul>'; mode = null; } };
+    const flushPara = () => { if (para.length) { closeList(); html += '<p>' + inline(para.join(' ')) + '</p>'; para = []; } };
+    const open = (m) => { flushPara(); if (mode !== m) { closeList(); html += m === 'ol' ? '<ol' + (opts.check ? ' class="check"' : '') + '>' : '<ul>'; mode = m; } };
+
+    while (i < lines.length) {
+      const line = lines[i];
+      if (/^\s*```/.test(line)) {                      // fenced code
+        flushPara(); closeList();
+        const buf = []; i++;
+        while (i < lines.length && !/^\s*```/.test(lines[i])) buf.push(lines[i++]);
+        html += '<pre><code>' + esc(buf.join('\n')) + '</code></pre>';
+      } else if (/^\s*\d+[.)]\s+/.test(line)) {
+        const m = line.match(/^\s*(\d+)[.)]\s+(.*)$/); open('ol');
+        html += '<li>' + (opts.check ? '<span class="box" aria-hidden="true"></span>' : '<span class="num">' + m[1] + '</span>') +
+                '<span class="txt">' + inline(m[2]) + '</span></li>';
+      } else if (/^\s*[-*•]\s+/.test(line)) {
+        const m = line.match(/^\s*[-*•]\s+(.*)$/); open('ul');
+        html += '<li><span class="bullet" aria-hidden="true"></span><span class="txt">' + inline(m[1]) + '</span></li>';
+      } else if (!line.trim()) {
+        flushPara(); closeList();
+      } else {
+        para.push(line.trim());
+      }
+      i++;
+    }
+    flushPara(); closeList();
+    return html;
+  }
+
+  function sectionHTML(s) {
+    const mark = MARKS[s.title] || '--mark-yellow';
+    const auto = s.source === 'auto' ? '<span class="tag-auto" title="The AI answer for this part was missing or cut off, so the built-in analyzer filled it in.">auto-completed</span>' : '';
+    let body;
+    if (s.title === 'Difficulty') {
+      const m = s.body.match(/^\W*(Beginner|Intermediate|Advanced)\W*(.*)$/is);
+      body = m ? '<p><span class="level ' + m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() + '">' + esc(m[1]) + '</span>' + inline(m[2].replace(/^[-–—:\s]+/, '')) + '</p>' : renderBody(s.body);
+    } else if (s.title === 'Commit Title') {
+      body = '<div class="commit-title"><code id="commit-title-text">' + esc(s.body) + '</code><button class="btn-ghost" data-copy="' + esc(s.body) + '">Copy title</button></div>';
+    } else {
+      body = renderBody(s.body, { check: s.title === 'Verification Checklist' });
+    }
+    return '<section class="block"><h2 class="hl" style="--mark: var(' + mark + ')"><span>' + esc(s.title) + '</span>' + auto + '</h2><div class="body">' + body + '</div></section>';
+  }
+
+  /* ---------- request plumbing ---------- */
+  function setBusy(kind, busy, label) {
+    $(kind + '-btn').disabled = busy;
+    $(kind + '-btn').textContent = busy ? 'Working…' : label;
+    $(kind + '-status').classList.toggle('show', busy);
+  }
+  function clearBanners(kind) { for (const b of ['error', 'shield', 'partial']) $(kind + '-' + b).classList.remove('show'); }
+  function showBanner(kind, which, msg) { const el = $(kind + '-' + which); el.textContent = msg; el.classList.add('show'); }
+
+  async function callApi(kind, url, payload, runningText) {
+    const started = Date.now();
+    const status = $(kind + '-status-text');
+    const tick = () => {
+      const s = Math.floor((Date.now() - started) / 1000);
+      let msg = s < 2 ? 'Masking secrets locally…' : s < 18 ? runningText : 'Taking longer than usual. A faster local fallback will answer shortly…';
+      status.textContent = msg + ' (' + s + 's)';
+    };
+    tick();
+    const timer = setInterval(tick, 500);
+    const ctrl = new AbortController();
+    const abort = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: ctrl.signal });
+      let data = {};
+      try { data = await res.json(); } catch (e) { /* non-JSON error */ }
+      if (!res.ok) {
+        let d = data.detail;
+        if (Array.isArray(d)) d = d.map(x => x.msg).join('; ');
+        throw new Error(d || ('Server returned HTTP ' + res.status));
+      }
+      return data;
+    } catch (err) {
+      if (err.name === 'AbortError') throw new Error('The request took longer than 40 seconds and was stopped. Try a smaller input.');
+      if (err instanceof TypeError) throw new Error('Cannot reach the backend. Start it with: uvicorn main:app --reload');
+      throw err;
+    } finally {
+      clearInterval(timer); clearTimeout(abort);
+    }
+  }
+
+  function metaBar(data, extra) {
+    return '<div class="result-bar"><span class="chip">' + esc(data.engine) + '</span>' +
+      '<span class="chip">' + (data.elapsed_ms / 1000).toFixed(1) + ' s</span>' + (extra || '') +
+      '<span class="spacer"></span>%ACTIONS%</div>';
+  }
+
+  /* ---------- Issue demystifier ---------- */
+  async function runDemystify() {
+    const text = $('issue-input').value;
+    clearBanners('issue'); $('issue-result').classList.remove('show');
+    if (!text.trim()) return showBanner('issue', 'error', 'Paste an issue first, or load the example.');
+    setBusy('issue', true);
+    try {
+      const data = await callApi('issue', '/api/demystify', { issue_text: text }, 'Gemma is reading the issue…');
+      const actions = '<button class="btn-ghost" onclick="copyText(window.__issueMd, \'Guidance copied\')">Copy guidance</button>';
+      window.__issueMd = data.output;
+      $('issue-result').innerHTML = metaBar(data).replace('%ACTIONS%', actions) + data.sections.map(sectionHTML).join('');
+      $('issue-result').classList.add('show');
+      if (data.secret_flagged) showBanner('issue', 'shield', 'Shield: ' + data.secrets_masked + ' credential(s) in your text were masked locally before analysis.');
+      if (data.partial) showBanner('issue', 'partial', 'Parts of the AI answer were missing or incomplete, so the built-in analyzer completed them. Those sections are tagged "auto-completed".');
+      $('issue-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) { showBanner('issue', 'error', err.message); }
+    finally { setBusy('issue', false, 'Explain this issue'); }
+  }
+
+  /* ---------- Diff → PR ---------- */
+  function filesHTML(files) {
+    return '<ul class="files">' + files.map(f =>
+      '<li><span class="p">' + esc(f.path) + '</span><span class="s">' + esc(f.status) + '</span><span class="a">+' + f.added + '</span><span class="d">−' + f.removed + '</span></li>').join('') + '</ul>';
+  }
+  function stepsHTML(steps) {
+    return '<ol>' + steps.map((s, i) =>
+      '<li><span class="num">' + (i + 1) + '</span><span class="txt"><span class="step-title">' + esc(s.title) + '</span><br><span class="step-detail">' + esc(s.detail) + '</span>' +
+      (s.command ? '<div class="step-cmd"><pre><code>' + esc(s.command) + '</code></pre><button class="btn-ghost" data-copy="' + esc(s.command) + '">Copy</button></div>' : '') +
+      '</span></li>').join('') + '</ol>';
+  }
+  async function runSynthesize() {
+    const text = $('diff-input').value;
+    clearBanners('diff'); $('diff-result').classList.remove('show');
+    if (!text.trim()) return showBanner('diff', 'error', 'Paste the output of git diff first, or load an example.');
+    setBusy('diff', true);
+    try {
+      const data = await callApi('diff', '/api/synthesize', { diff_text: text }, 'Gemma is writing your pull request…');
+      lastPR = data.pr_markdown;
+      const extra = '<span class="chip">' + data.stats.files + ' file' + (data.stats.files === 1 ? '' : 's') + '</span>' +
+                    '<span class="chip add">+' + data.stats.added + '</span><span class="chip del">−' + data.stats.removed + '</span>';
+      const actions = '<button class="btn-ghost" onclick="copyText(lastPR, \'PR description copied\')">Copy PR description</button>';
+      const filesBlock = '<section class="block"><h2 class="hl" style="--mark: var(--mark-peach)"><span>Files Changed</span></h2><div class="body">' + filesHTML(data.files) + '</div></section>';
+      const stepsBlock = '<section class="block"><h2 class="hl" style="--mark: var(--mark-yellow)"><span>Submit It: Step by Step</span></h2><div class="body">' + stepsHTML(data.git_steps) + '</div></section>';
+      // order: title, summary, files, checklist, git steps
+      const by = Object.fromEntries(data.sections.map(s => [s.title, s]));
+      $('diff-result').innerHTML = metaBar(data, extra).replace('%ACTIONS%', actions) +
+        sectionHTML(by['Commit Title']) + sectionHTML(by['Summary of Changes']) + filesBlock +
+        sectionHTML(by['Verification Checklist']) + stepsBlock;
+      $('diff-result').classList.add('show');
+      if (data.secret_flagged) showBanner('diff', 'shield', 'Shield: ' + data.secrets_masked + ' leaked credential(s) were masked locally with [MASKED_SECRET_CREDENTIAL] before the diff left your machine. Rotate that token and remove it from your commit before pushing.');
+      if (data.partial) showBanner('diff', 'partial', 'Parts of the AI answer were missing or incomplete, so the built-in analyzer completed them. Those sections are tagged "auto-completed".');
+      $('diff-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) { showBanner('diff', 'error', err.message); }
+    finally { setBusy('diff', false, 'Create pull request'); }
+  }
+
+  // copy buttons rendered inside results
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-copy]');
+    if (b) copyText(b.getAttribute('data-copy'));
+  });
+
+  /* ---------- engine status ---------- */
+  fetch('/api/health').then(r => r.json()).then(h => {
+    const el = $('engine-status');
+    el.innerHTML = '<span class="dot ' + (h.cloud_configured ? 'ok' : 'warn') + '"></span><span>' +
+      (h.cloud_configured ? 'Cloud ' + esc(h.cloud_model) + ' + local fallback' : 'No API key: local engine only') + '</span>';
+  }).catch(() => { $('engine-status').innerHTML = '<span class="dot warn"></span><span>Backend not reachable</span>'; });
+
+  /* ---------- presets ---------- */
+  function fillDemoIssue() {
+    $('issue-input').value =
 `[Bug]: ECONNABORTED timeout drops request config in response interceptor chain
 
 ### Environment
@@ -131,9 +429,9 @@
 - Adapter: lib/adapters/http.js
 
 ### Description
-When an outbound socket times out and raises AxiosError with code 'ECONNABORTED', 
-the error object passed to 'axios.interceptors.response.use()' strips the 
-internal 'error.config' metadata object. 
+When an outbound socket times out and raises AxiosError with code 'ECONNABORTED',
+the error object passed to 'axios.interceptors.response.use()' strips the
+internal 'error.config' metadata object.
 
 This causes uncaught TypeErrors in our distributed tracing middleware:
 TypeError: Cannot read properties of undefined (reading 'headers')
@@ -144,10 +442,10 @@ TypeError: Cannot read properties of undefined (reading 'headers')
 1. Configure custom Axios client with 'timeout: 2000' and a retry interceptor.
 2. Route a POST request to a mock service dropping TCP packets.
 3. Catch block in interceptor receives truncated AxiosError without original config.`;
-    }
-
-    function fillCleanDiff() {
-      document.getElementById('diff-input').value = 
+    updateCount('issue');
+  }
+  function fillCleanDiff() {
+    $('diff-input').value =
 `diff --git a/lib/adapters/http.js b/lib/adapters/http.js
 index 4b91a2e..8c32f91 100644
 --- a/lib/adapters/http.js
@@ -171,10 +469,10 @@ index 4b91a2e..8c32f91 100644
 +          req
          ));
        });`;
-    }
-
-    function fillSecretDiff() {
-      document.getElementById('diff-input').value = 
+    updateCount('diff');
+  }
+  function fillSecretDiff() {
+    $('diff-input').value =
 `diff --git a/tests/integration/test_github_sync.py b/tests/integration/test_github_sync.py
 index 109f2a1..e48b11c 100644
 --- a/tests/integration/test_github_sync.py
@@ -182,134 +480,15 @@ index 109f2a1..e48b11c 100644
 @@ -18,6 +18,10 @@ def test_repository_sync_webhook():
      # Temporary fixture for staging CI webhook integration
 +    staging_client = GitHubClient(
-+        org="enterprise-org",
-+        api_token="ghp_98a7F2kL8190BvaX94719283749182374918"
-+    )
-+    payload = {"repository": {"full_name": "enterprise-org/core-api"}}
+         org="enterprise-org",
+         api_token="ghp_98a7F2kL8190BvaX94719283749182374918"
+     )
+     payload = {"repository": {"full_name": "enterprise-org/core-api"}}
 -    response = staging_client.sync_branches()
 +    response = staging_client.sync_branches(payload=payload)
      assert response.status_code == 200`;
-    }
-
-    // --- CLEAN MARKDOWN & KEYWORD HIGHLIGHTING ENGINE ---
-    function formatMarkdown(raw) {
-      if (!raw) return "";
-
-      // 1. Strip internal scratchpad or prompt-echo lines
-      let text = raw.replace(/\* (Role|Input|Goal|Tone|Check constraints):.*?\n/gi, '');
-      text = text.replace(/Draft \d+:.*?\n/gi, '');
-
-      // 2. Escape HTML special characters
-      let html = text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-
-      // 3. Format Headers (H3, H2)
-      html = html.replace(/^### (.*$)/gim, '<h3 class="text-sm font-bold text-emerald-400 mt-4 mb-2 pb-1 border-b border-slate-800 tracking-wide uppercase flex items-center gap-1.5">$1</h3>');
-      html = html.replace(/^## (.*$)/gim, '<h2 class="text-base font-bold text-white mt-3 mb-1">$1</h2>');
-
-      // 4. Code Blocks
-      html = html.replace(/```([\s\S]*?)```/gm, '<pre class="bg-slate-950 border border-slate-800 p-3 rounded-lg text-emerald-300 font-mono text-xs overflow-x-auto my-2.5"><code>$1</code></pre>');
-
-      // 5. Inline Code (`code`)
-      html = html.replace(/`([^`]+)`/gim, '<code class="bg-slate-950 text-amber-300 px-1.5 py-0.5 rounded font-mono text-xs border border-slate-800">$1</code>');
-
-      // 6. Highlighted Bold Phrases (**text**)
-      html = html.replace(/\*\*(.*?)\*\*/gim, '<strong class="text-emerald-300 font-semibold">$1</strong>');
-
-      // 7. Bullet Lists (* or -)
-      html = html.replace(/^\s*[\*\-]\s+(.*$)/gim, '<div class="flex items-start space-x-2 my-1.5"><span class="text-emerald-400 font-bold">•</span><span class="text-slate-300">$1</span></div>');
-
-      // 8. Numbered Lists (1., 2.)
-      html = html.replace(/^\s*(\d+)\.\s+(.*$)/gim, '<div class="flex items-start space-x-2 my-1.5"><span class="text-emerald-400 font-mono font-bold text-xs">$1.</span><span class="text-slate-300">$2</span></div>');
-
-      // 9. Paragraph Spacing
-      html = html.replace(/\n\n/g, '<div class="h-2"></div>');
-
-      return html;
-    }
-
-    // Call Demystify Endpoint
-    async function runDemystify() {
-      const text = document.getElementById('issue-input').value;
-      const btn = document.getElementById('demystify-btn');
-      const card = document.getElementById('issue-output-card');
-      const resultBox = document.getElementById('issue-result');
-      const badge = document.getElementById('issue-engine-badge');
-
-      if (!text.trim()) return alert("Please enter or insert an issue description.");
-
-      btn.disabled = true;
-      btn.innerText = "Analyzing with Gemma...";
-      card.classList.add('hidden');
-
-      try {
-        const res = await fetch('/api/demystify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ issue_text: text })
-        });
-        const data = await res.json();
-        
-        badge.innerText = "⚡ " + (data.engine || "Inference Complete");
-        resultBox.innerHTML = formatMarkdown(data.output || data.detail || "No output returned.");
-        card.classList.remove('hidden');
-      } catch (err) {
-        alert("Failed to connect to backend: " + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.innerText = "Demystify Issue";
-      }
-    }
-
-    // Call Synthesize Endpoint
-    async function runSynthesize() {
-      const text = document.getElementById('diff-input').value;
-      const btn = document.getElementById('synthesize-btn');
-      const card = document.getElementById('diff-output-card');
-      const resultBox = document.getElementById('diff-result');
-      const badge = document.getElementById('diff-engine-badge');
-      const alertBox = document.getElementById('security-alert');
-
-      if (!text.trim()) return alert("Please enter or insert a git diff.");
-
-      btn.disabled = true;
-      btn.innerText = "Synthesizing PR with Gemma...";
-      card.classList.add('hidden');
-
-      try {
-        const res = await fetch('/api/synthesize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ diff_text: text })
-        });
-        const data = await res.json();
-        
-        badge.innerText = "⚡ " + (data.engine || "Inference Complete");
-        resultBox.innerHTML = formatMarkdown(data.output || data.detail || "No output returned.");
-        
-        if (data.secret_flagged) {
-          alertBox.classList.remove('hidden');
-        } else {
-          alertBox.classList.add('hidden');
-        }
-
-        card.classList.remove('hidden');
-      } catch (err) {
-        alert("Failed to connect to backend: " + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.innerText = "Generate Pull Request";
-      }
-    }
-
-    // Clipboard Copy Helper
-    function copyContent(elementId) {
-      const text = document.getElementById(elementId).innerText;
-      navigator.clipboard.writeText(text);
-      alert("Copied to clipboard!");
-    }
-  </script>
+    updateCount('diff');
+  }
+</script>
 </body>
 </html>
