@@ -210,6 +210,8 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
+ const BACKEND_URL = "https://gemma-merge.onrender.com";
+
   const REQUEST_TIMEOUT_MS = 40000;   // backend budget is 28 s; this is only a safety net
   const MARKS = {
     'Summary': '--mark-yellow',
@@ -356,7 +358,7 @@
     if (!text.trim()) return showBanner('issue', 'error', 'Paste an issue first, or load the example.');
     setBusy('issue', true);
     try {
-      const data = await callApi('issue', '/api/demystify', { issue_text: text }, 'Gemma is reading the issue…');
+      const data = await callApi('issue', BACKEND_URL + '/api/demystify', { issue_text: text }, 'Gemma is reading the issue…');
       const actions = '<button class="btn-ghost" onclick="copyText(window.__issueMd, \'Guidance copied\')">Copy guidance</button>';
       window.__issueMd = data.output;
       $('issue-result').innerHTML = metaBar(data).replace('%ACTIONS%', actions) + data.sections.map(sectionHTML).join('');
@@ -385,7 +387,7 @@
     if (!text.trim()) return showBanner('diff', 'error', 'Paste the output of git diff first, or load an example.');
     setBusy('diff', true);
     try {
-      const data = await callApi('diff', '/api/synthesize', { diff_text: text }, 'Gemma is writing your pull request…');
+      const data = await callApi('diff', BACKEND_URL + '/api/synthesize', { diff_text: text }, 'Gemma is writing your pull request…');
       lastPR = data.pr_markdown;
       const extra = '<span class="chip">' + data.stats.files + ' file' + (data.stats.files === 1 ? '' : 's') + '</span>' +
                     '<span class="chip add">+' + data.stats.added + '</span><span class="chip del">−' + data.stats.removed + '</span>';
@@ -412,7 +414,7 @@
   });
 
   /* ---------- engine status ---------- */
-  fetch('/api/health').then(r => r.json()).then(h => {
+  fetch(BACKEND_URL + '/api/health').then(r => r.json()).then(h => {
     const el = $('engine-status');
     el.innerHTML = '<span class="dot ' + (h.cloud_configured ? 'ok' : 'warn') + '"></span><span>' +
       (h.cloud_configured ? 'Cloud ' + esc(h.cloud_model) + ' + local fallback' : 'No API key: local engine only') + '</span>';
