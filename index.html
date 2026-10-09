@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemma-Merge | AI GitHub Assistant</title>
+  <script src="/tailwind.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col items-center p-4 sm:p-8">
+
+  <!-- Top Banner -->
+  <header class="w-full max-w-4xl flex flex-col sm:flex-row items-center justify-between border-b border-slate-800 pb-5 mb-8">
+    <div>
+      <h1 class="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
+        <span>⚡ Gemma-Merge</span>
+      </h1>
+      <p class="text-sm text-slate-400 mt-1">Open-Source Copilot & Privacy Harness | Powered by Gemma 4</p>
+    </div>
+    <div class="mt-4 sm:mt-0 flex items-center gap-2">
+      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-950 text-emerald-400 border border-emerald-800">
+        ● Dual-Engine (Cloud + Local Edge)
+      </span>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <main class="w-full max-w-4xl">
+    <div class="flex border-b border-slate-800 mb-6">
+      <button id="tab-issue-btn" onclick="switchTab('issue')" class="px-5 py-2.5 font-semibold text-emerald-400 border-b-2 border-emerald-400 transition">
+        1. Issue Demystifier
+      </button>
+      <button id="tab-diff-btn" onclick="switchTab('diff')" class="px-5 py-2.5 font-semibold text-slate-400 hover:text-white transition">
+        2. Diff-to-PR Synthesizer
+      </button>
+    </div>
+
+    <!-- TAB 1: ISSUE DEMYSTIFIER -->
+    <section id="tab-issue" class="space-y-6">
+      <!-- Input Card -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+        <div class="flex justify-between items-center mb-2">
+          <label class="block text-sm font-semibold text-slate-300">Paste GitHub Issue Description:</label>
+          <button onclick="fillDemoIssue()" class="text-xs text-emerald-400 hover:text-emerald-300 hover:underline">
+            + Preset: Real Bug (Axios #5237)
+          </button>
+        </div>
+        <textarea id="issue-input" rows="7" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500 leading-relaxed" placeholder="e.g. Uncaught TypeError in hydration mismatch when rendering dynamic slot components..."></textarea>
+        
+        <button id="demystify-btn" onclick="runDemystify()" class="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 font-semibold text-white py-2.5 px-4 rounded-lg transition flex items-center justify-center gap-2 shadow-md shadow-emerald-950">
+          <span>Demystify Issue</span>
+        </button>
+      </div>
+
+      <!-- Output Display (Rendered Directly Below Input) -->
+      <div id="issue-output-card" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+          <span id="issue-engine-badge" class="text-xs px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-emerald-400 font-mono">Engine</span>
+          <button onclick="copyContent('issue-result')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded transition">
+            📋 Copy Guidance
+          </button>
+        </div>
+        <div id="issue-result" class="text-sm text-slate-200 leading-relaxed space-y-2"></div>
+      </div>
+    </section>
+
+    <!-- TAB 2: DIFF-TO-PR SYNTHESIZER -->
+    <section id="tab-diff" class="hidden space-y-6">
+      <!-- Input Card -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+        <div class="flex justify-between items-center mb-2">
+          <label class="block text-sm font-semibold text-slate-300">Paste Raw Git Diff (`git diff`):</label>
+          <div class="space-x-2 text-xs">
+            <button onclick="fillCleanDiff()" class="text-emerald-400 hover:text-emerald-300 hover:underline">+ Clean Bugfix Diff</button>
+            <span class="text-slate-600">|</span>
+            <button onclick="fillSecretDiff()" class="text-rose-400 hover:text-rose-300 hover:underline">+ Diff with Leaked Token</button>
+          </div>
+        </div>
+        <textarea id="diff-input" rows="7" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500 leading-relaxed" placeholder="diff --git a/auth.py b/auth.py..."></textarea>
+        
+        <button id="synthesize-btn" onclick="runSynthesize()" class="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 font-semibold text-white py-2.5 px-4 rounded-lg transition flex items-center justify-center gap-2 shadow-md shadow-emerald-950">
+          <span>Generate Pull Request</span>
+        </button>
+      </div>
+
+      <!-- Output Display (Rendered Directly Below Input) -->
+      <div id="diff-output-card" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-4">
+        <div id="security-alert" class="hidden p-3.5 rounded-lg bg-rose-950/70 border border-rose-800 text-rose-200 text-xs font-semibold flex items-center gap-2">
+          <span class="text-base">🛡️</span>
+          <span>Zero-Trust Credential Shield: Leaked token intercepted and neutralized locally with [MASKED_SECRET_CREDENTIAL].</span>
+        </div>
+        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+          <span id="diff-engine-badge" class="text-xs px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-emerald-400 font-mono">Engine</span>
+          <button onclick="copyContent('diff-result')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded transition">
+            📋 Copy PR Markdown
+          </button>
+        </div>
+        <div id="diff-result" class="text-sm text-slate-200 leading-relaxed space-y-2"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Tab Switching
+    function switchTab(tab) {
+      const issueTab = document.getElementById('tab-issue');
+      const diffTab = document.getElementById('tab-diff');
+      const issueBtn = document.getElementById('tab-issue-btn');
+      const diffBtn = document.getElementById('tab-diff-btn');
+
+      if (tab === 'issue') {
+        issueTab.classList.remove('hidden');
+        diffTab.classList.add('hidden');
+        issueBtn.className = "px-5 py-2.5 font-semibold text-emerald-400 border-b-2 border-emerald-400 transition";
+        diffBtn.className = "px-5 py-2.5 font-semibold text-slate-400 hover:text-white transition";
+      } else {
+        diffTab.classList.remove('hidden');
+        issueTab.classList.add('hidden');
+        diffBtn.className = "px-5 py-2.5 font-semibold text-emerald-400 border-b-2 border-emerald-400 transition";
+        issueBtn.className = "px-5 py-2.5 font-semibold text-slate-400 hover:text-white transition";
+      }
+    }
+
+    // --- REAL-WORLD DATA PRESETS (AXIOS & INTEGRATION TESTS) ---
+    function fillDemoIssue() {
+      document.getElementById('issue-input').value = 
+`[Bug]: ECONNABORTED timeout drops request config in response interceptor chain
+
+### Environment
+- Axios: v1.6.8
+- Runtime: Node.js v20.11 (Linux x86_64)
+- Adapter: lib/adapters/http.js
+
+### Description
+When an outbound socket times out and raises AxiosError with code 'ECONNABORTED', 
+the error object passed to 'axios.interceptors.response.use()' strips the 
+internal 'error.config' metadata object. 
+
+This causes uncaught TypeErrors in our distributed tracing middleware:
+TypeError: Cannot read properties of undefined (reading 'headers')
+  at Object.tracingInterceptor (src/telemetry/tracer.ts:42:28)
+  at processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+### Steps to Reproduce
+1. Configure custom Axios client with 'timeout: 2000' and a retry interceptor.
+2. Route a POST request to a mock service dropping TCP packets.
+3. Catch block in interceptor receives truncated AxiosError without original config.`;
+    }
+
+    function fillCleanDiff() {
+      document.getElementById('diff-input').value = 
+`diff --git a/lib/adapters/http.js b/lib/adapters/http.js
+index 4b91a2e..8c32f91 100644
+--- a/lib/adapters/http.js
++++ b/lib/adapters/http.js
+@@ -142,7 +142,9 @@ export default function httpAdapter(config) {
+       if (req.aborted) {
+         reject(new AxiosError(
+           'timeout of ' + config.timeout + 'ms exceeded',
+-          AxiosError.ECONNABORTED
++          AxiosError.ECONNABORTED,
++          config,
++          req
+         ));
+         return;
+       }
+@@ -178,6 +180,8 @@ export default function httpAdapter(config) {
+         reject(new AxiosError(
+           'socket hang up',
+           AxiosError.ERR_BAD_RESPONSE,
++          config,
++          req
+         ));
+       });`;
+    }
+
+    function fillSecretDiff() {
+      document.getElementById('diff-input').value = 
+`diff --git a/tests/integration/test_github_sync.py b/tests/integration/test_github_sync.py
+index 109f2a1..e48b11c 100644
+--- a/tests/integration/test_github_sync.py
++++ b/tests/integration/test_github_sync.py
+@@ -18,6 +18,10 @@ def test_repository_sync_webhook():
+     # Temporary fixture for staging CI webhook integration
++    staging_client = GitHubClient(
++        org="enterprise-org",
++        api_token="ghp_98a7F2kL8190BvaX94719283749182374918"
++    )
++    payload = {"repository": {"full_name": "enterprise-org/core-api"}}
+-    response = staging_client.sync_branches()
++    response = staging_client.sync_branches(payload=payload)
+     assert response.status_code == 200`;
+    }
+
+    // --- CLEAN MARKDOWN & KEYWORD HIGHLIGHTING ENGINE ---
+    function formatMarkdown(raw) {
+      if (!raw) return "";
+
+      // 1. Strip internal scratchpad or prompt-echo lines
+      let text = raw.replace(/\* (Role|Input|Goal|Tone|Check constraints):.*?\n/gi, '');
+      text = text.replace(/Draft \d+:.*?\n/gi, '');
+
+      // 2. Escape HTML special characters
+      let html = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      // 3. Format Headers (H3, H2)
+      html = html.replace(/^### (.*$)/gim, '<h3 class="text-sm font-bold text-emerald-400 mt-4 mb-2 pb-1 border-b border-slate-800 tracking-wide uppercase flex items-center gap-1.5">$1</h3>');
+      html = html.replace(/^## (.*$)/gim, '<h2 class="text-base font-bold text-white mt-3 mb-1">$1</h2>');
+
+      // 4. Code Blocks
+      html = html.replace(/```([\s\S]*?)```/gm, '<pre class="bg-slate-950 border border-slate-800 p-3 rounded-lg text-emerald-300 font-mono text-xs overflow-x-auto my-2.5"><code>$1</code></pre>');
+
+      // 5. Inline Code (`code`)
+      html = html.replace(/`([^`]+)`/gim, '<code class="bg-slate-950 text-amber-300 px-1.5 py-0.5 rounded font-mono text-xs border border-slate-800">$1</code>');
+
+      // 6. Highlighted Bold Phrases (**text**)
+      html = html.replace(/\*\*(.*?)\*\*/gim, '<strong class="text-emerald-300 font-semibold">$1</strong>');
+
+      // 7. Bullet Lists (* or -)
+      html = html.replace(/^\s*[\*\-]\s+(.*$)/gim, '<div class="flex items-start space-x-2 my-1.5"><span class="text-emerald-400 font-bold">•</span><span class="text-slate-300">$1</span></div>');
+
+      // 8. Numbered Lists (1., 2.)
+      html = html.replace(/^\s*(\d+)\.\s+(.*$)/gim, '<div class="flex items-start space-x-2 my-1.5"><span class="text-emerald-400 font-mono font-bold text-xs">$1.</span><span class="text-slate-300">$2</span></div>');
+
+      // 9. Paragraph Spacing
+      html = html.replace(/\n\n/g, '<div class="h-2"></div>');
+
+      return html;
+    }
+
+    // Call Demystify Endpoint
+    async function runDemystify() {
+      const text = document.getElementById('issue-input').value;
+      const btn = document.getElementById('demystify-btn');
+      const card = document.getElementById('issue-output-card');
+      const resultBox = document.getElementById('issue-result');
+      const badge = document.getElementById('issue-engine-badge');
+
+      if (!text.trim()) return alert("Please enter or insert an issue description.");
+
+      btn.disabled = true;
+      btn.innerText = "Analyzing with Gemma...";
+      card.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/demystify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ issue_text: text })
+        });
+        const data = await res.json();
+        
+        badge.innerText = "⚡ " + (data.engine || "Inference Complete");
+        resultBox.innerHTML = formatMarkdown(data.output || data.detail || "No output returned.");
+        card.classList.remove('hidden');
+      } catch (err) {
+        alert("Failed to connect to backend: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Demystify Issue";
+      }
+    }
+
+    // Call Synthesize Endpoint
+    async function runSynthesize() {
+      const text = document.getElementById('diff-input').value;
+      const btn = document.getElementById('synthesize-btn');
+      const card = document.getElementById('diff-output-card');
+      const resultBox = document.getElementById('diff-result');
+      const badge = document.getElementById('diff-engine-badge');
+      const alertBox = document.getElementById('security-alert');
+
+      if (!text.trim()) return alert("Please enter or insert a git diff.");
+
+      btn.disabled = true;
+      btn.innerText = "Synthesizing PR with Gemma...";
+      card.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/synthesize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ diff_text: text })
+        });
+        const data = await res.json();
+        
+        badge.innerText = "⚡ " + (data.engine || "Inference Complete");
+        resultBox.innerHTML = formatMarkdown(data.output || data.detail || "No output returned.");
+        
+        if (data.secret_flagged) {
+          alertBox.classList.remove('hidden');
+        } else {
+          alertBox.classList.add('hidden');
+        }
+
+        card.classList.remove('hidden');
+      } catch (err) {
+        alert("Failed to connect to backend: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Generate Pull Request";
+      }
+    }
+
+    // Clipboard Copy Helper
+    function copyContent(elementId) {
+      const text = document.getElementById(elementId).innerText;
+      navigator.clipboard.writeText(text);
+      alert("Copied to clipboard!");
+    }
+  </script>
+</body>
+</html>
